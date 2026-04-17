@@ -3,7 +3,7 @@
 ;; Copyright (C) 2024
 ;;
 ;; Author: Jeremias
-;; Version: 0.2.1
+;; Version: 0.1.2
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: tools, kubernetes, plantuml
 ;; URL: https://github.com/jeremias/k8s-to-puml
@@ -41,14 +41,14 @@ Example: \"!define k8s https://raw.githubusercontent.com/...\\n!include k8s\""
 (defcustom k8s-to-puml-shape-mapping
   '(("Ingress"               . "boundary")
     ("Service"               . "interface")
-    ("ConfigMap"             . "artifact")
+    ("ConfigMap"             . "collections")
     ("Secret"                . "artifact")
     ("PersistentVolumeClaim" . "database")
     ("PersistentVolume"      . "database")
-    ("NetworkPolicy"         . "interface")
-    ("Role"                  . "rectangle")
-    ("RoleBinding"           . "rectangle")
-    ("ServiceAccount"        . "actor"))
+    ("NetworkPolicy"         . "card")
+    ("Role"                  . "file")
+    ("RoleBinding"           . "control")
+    ("ServiceAccount"        . "artifact"))
   "Mapping of Kubernetes resource kinds to PlantUML shapes.
 If a kind is not found in this list, `component` is used as fallback."
   :type '(alist :key-type string :value-type string)
@@ -90,7 +90,7 @@ If PREDICATE is true, FACT is added to the knowledge base and TEMPLATE is render
                        (let ((backends (alist-get 'backends src))
                              (svc-name (alist-get 'name dst)))
                          (member svc-name (flatten-tree backends)))))
-        (template . "%s --> %s : routes to\n")))
+        (template . "%s --( %s : routes to\n")))
     (service-deployment
      . ((source . "Service")
         (dest . "Deployment")
@@ -101,7 +101,7 @@ If PREDICATE is true, FACT is added to the knowledge base and TEMPLATE is render
                               (cl-every (lambda (pair)
                                           (string= (cdr pair) (alist-get (car pair) dep-sel nil nil #'string=)))
                                         svc-sel)))))
-        (template . "%s --> %s : selects\n"))))
+        (template . "%s --(0 %s : selects\n"))))
   "Rules to infer connections between resources.")
 
 ;;; Extraction Engine
@@ -187,7 +187,7 @@ If path is exhausted and node is a mapping, returns an alist."
 
 (defun k8s-to-puml--generate-puml (facts)
   "Generate PlantUML string from extracted FACTS."
-  (let ((puml '("@startuml\nskinparam componentStyle uml2\n"))
+  (let ((puml (list "@startuml\nskinparam componentStyle uml2\n"))
         (namespaces (make-hash-table :test 'equal))
         (inferred-facts nil))
 
