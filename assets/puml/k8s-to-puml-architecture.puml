@@ -18,62 +18,62 @@ skinparam partition {
   FontSize 16
 }
 
-title Arquitetura GOFAI: k8s-to-puml (Atualizada)
+title GOFAI Architecture: k8s-to-puml
 
 start
-:Executa `M-x k8s-to-puml`\nem buffer yaml-ts-mode;
+:Execute `M-x k8s-to-puml`\nin a yaml-ts-mode buffer;
 
-partition "1. Motor de Extração" {
-  :Obter AST Root (Tree-sitter);
-  :Inicializar Lista de Fatos;
-  repeat :Para cada Documento YAML;
-    :Extrair Metadados Básicos\n(kind, name, namespace);
-    if (Regra em `extraction-rules`?) then (Sim)
-      :Extrair dados específicos\n(selectors, volumes, refs);
+partition "1. Extraction Engine" {
+  :Retrieve AST Root (Tree-sitter);
+  :Initialize Facts List;
+  repeat :For each YAML Document;
+    :Extract Basic Metadata\n(kind, name, namespace);
+    if (Rule in `extraction-rules`?) then (Yes)
+      :Extract specific data\n(selectors, volumes, refs);
     endif
-    :Adicionar Fato à Lista;
-  repeat while (Mais documentos?)
+    :Append Fact to List;
+  repeat while (More documents?)
 }
 
-partition "2. Motor de Inferência (Fatos)" {
-  :Avaliar `inference-rules`;
-  note right: Infere Internet, Ingress Controller\ne Storage Externo (Fatos Fantasmas)
-  :Injetar novos fatos na lista;
+partition "2. Inference Engine (Facts)" {
+  :Evaluate `inference-rules`;
+  note right: Infers Internet, Ingress Controller\nand External Storage (Dummy Facts)
+  :Inject inferred facts into the list;
 }
 
-partition "3. Motor de Transformação" {
-  :Agrupar RoleBindings e Roles;
-  note right: Funde em "RoleGroup"\npara renderização unificada
+partition "3. Transformation Engine" {
+  :Group RoleBindings and Roles;
+  note right: Merges into "RoleGroup"\nfor unified rendering
 }
 
-partition "4. Motor de Renderização (Shapes)" {
-  :Agrupar Fatos por Namespace;
-  :Injetar Wrapper de Infra (se configurado);
-  repeat :Para cada Fato;
-    if (Kind está na Blacklist?) then (Sim)
-      :Renderizar Shape Comentado (');
-    else (Não)
-      :Renderizar Shape Padrão;
+partition "4. Rendering Engine (Shapes)" {
+  :Group Facts by Namespace;
+  :Inject Infrastructure Wrapper (if configured);
+  repeat :For each Fact;
+    if (Kind is Blacklisted?) then (Yes)
+      :Render Commented Shape (');
+    else (No)
+      :Render Standard Shape;
     endif
-  repeat while (Mais fatos?)
+  repeat while (More facts?)
 }
 
-partition "5. Motor de Relações (GOFAI)" {
-  :Produto Cartesiano (Fato A x Fato B);
-  repeat :Para cada par (A, B);
-    if (Regra em `relation-rules` bate?) then (Sim)
-      if (A ou B na Blacklist?) then (Sim)
-        :Gerar Conexão Comentada (');
-      else (Não)
-        :Gerar Conexão;
+partition "5. Relation Engine (GOFAI)" {
+  :Cartesian Product (Fact A x Fact B);
+  repeat :For each pair (A, B);
+    if (Rule in `relation-rules` matches?) then (Yes)
+      if (A or B is Blacklisted?) then (Yes)
+        :Generate Commented Connection (');
+      else (No)
+        :Generate Connection;
       endif
     endif
-  repeat while (Mais pares?)
+  repeat while (More pairs?)
 }
 
-partition "6. Finalização" {
-  :Injetar Relações de Rede Customizadas;
-  :Exibir buffer `*k8s-to-puml-draft-diagram*`;
+partition "6. Finalization" {
+  :Inject Custom Network Relations;
+  :Display `*k8s-to-puml-draft-diagram*` buffer;
 }
 
 stop
