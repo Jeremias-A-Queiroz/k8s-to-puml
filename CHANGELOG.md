@@ -1,3 +1,12 @@
+# [0.3.0](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.2.0...v0.3.0) (2026-04-17)
+
+
+### Features
+
+* Adiciona suporte detalhado para Ingress Controller ([75ba0f3](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/commit/75ba0f375d0de2c643adac1c41f09c8728c35ab8)), closes [#6](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/issues/6)
+
+
+
 # [0.2.0](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.1.2...v0.2.0) (2026-04-17)
 
 
