@@ -1,3 +1,12 @@
+# [0.4.0](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.3.0...v0.4.0) (2026-04-17)
+
+
+### Features
+
+* Adiciona suporte para PVC, PV e ConfigMap ([4fee723](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/commit/4fee723dc59ac9f39cccd071c4c5f34734497664)), closes [#7](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/issues/7)
+
+
+
 # [0.3.0](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.2.0...v0.3.0) (2026-04-17)
 
 
