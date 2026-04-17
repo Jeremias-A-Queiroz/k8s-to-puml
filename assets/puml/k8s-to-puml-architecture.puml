@@ -1,0 +1,80 @@
+@startuml
+!theme plain
+skinparam activity {
+  BorderColor #4285F4
+  BackgroundColor #E8F0FE
+  FontColor #3C4043
+  FontSize 14
+  ArrowColor #4285F4
+}
+skinparam note {
+  BackgroundColor #FFF7DA
+  BorderColor #FBBC04
+}
+skinparam partition {
+  BorderColor #34A853
+  BackgroundColor transparent
+  FontColor #34A853
+  FontSize 16
+}
+
+title Arquitetura GOFAI: k8s-to-puml (Atualizada)
+
+start
+:Executa `M-x k8s-to-puml`\nem buffer yaml-ts-mode;
+
+partition "1. Motor de Extração" {
+  :Obter AST Root (Tree-sitter);
+  :Inicializar Lista de Fatos;
+  repeat :Para cada Documento YAML;
+    :Extrair Metadados Básicos\n(kind, name, namespace);
+    if (Regra em `extraction-rules`?) then (Sim)
+      :Extrair dados específicos\n(selectors, volumes, refs);
+    endif
+    :Adicionar Fato à Lista;
+  repeat while (Mais documentos?)
+}
+
+partition "2. Motor de Inferência (Fatos)" {
+  :Avaliar `inference-rules`;
+  note right: Infere Internet, Ingress Controller\ne Storage Externo (Fatos Fantasmas)
+  :Injetar novos fatos na lista;
+}
+
+partition "3. Motor de Transformação" {
+  :Agrupar RoleBindings e Roles;
+  note right: Funde em "RoleGroup"\npara renderização unificada
+}
+
+partition "4. Motor de Renderização (Shapes)" {
+  :Agrupar Fatos por Namespace;
+  :Injetar Wrapper de Infra (se configurado);
+  repeat :Para cada Fato;
+    if (Kind está na Blacklist?) then (Sim)
+      :Renderizar Shape Comentado (');
+    else (Não)
+      :Renderizar Shape Padrão;
+    endif
+  repeat while (Mais fatos?)
+}
+
+partition "5. Motor de Relações (GOFAI)" {
+  :Produto Cartesiano (Fato A x Fato B);
+  repeat :Para cada par (A, B);
+    if (Regra em `relation-rules` bate?) then (Sim)
+      if (A ou B na Blacklist?) then (Sim)
+        :Gerar Conexão Comentada (');
+      else (Não)
+        :Gerar Conexão;
+      endif
+    endif
+  repeat while (Mais pares?)
+}
+
+partition "6. Finalização" {
+  :Injetar Relações de Rede Customizadas;
+  :Exibir buffer `*k8s-to-puml-draft-diagram*`;
+}
+
+stop
+@enduml
