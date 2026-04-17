@@ -1,3 +1,12 @@
+# [0.6.0](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.5.0...v0.6.0) (2026-04-17)
+
+
+### Features
+
+* Adiciona opção para ignorar Kinds específicos ([e5e01a9](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/commit/e5e01a99fe5319c7f9ade6530cd77b6545d3ad91)), closes [#13](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/issues/13)
+
+
+
 # [0.5.0](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.4.0...v0.5.0) (2026-04-17)
 
 
