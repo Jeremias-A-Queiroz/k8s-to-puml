@@ -3,7 +3,7 @@
 ;; Copyright (C) 2024
 ;;
 ;; Author: Jeremias
-;; Version: 0.4.0
+;; Version: 0.5.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: tools, kubernetes, plantuml
 ;; URL: https://github.com/jeremias/k8s-to-puml
@@ -69,6 +69,32 @@ If a kind is not found in this list, `component` is used as fallback."
   :type 'string
   :group 'k8s-to-puml)
 
+(defcustom k8s-to-puml-infra-wrapper-open nil
+  "PlantUML string to open an infrastructure wrapper around the cluster.
+Example: \"frame \\\"OCI\\\" {\\n  artifact \\\"OCI FSS\\\" as fss\\n  rectangle \\\"Fortiweb\\\"\""
+  :type '(choice (const :tag "None" nil) string)
+  :group 'k8s-to-puml)
+
+(defcustom k8s-to-puml-infra-wrapper-close "}"
+  "PlantUML string to close the infrastructure wrapper.
+Used only if `k8s-to-puml-infra-wrapper-open' is non-nil."
+  :type 'string
+  :group 'k8s-to-puml)
+
+(defcustom k8s-to-puml-infra-network-relations nil
+  "Static PlantUML network relations for external infrastructure.
+If non-nil, this replaces the default direct Internet-to-Ingress-Controller link.
+Example: \"internet --(0 Fortiweb\\nFortiweb 0)-right-(0 LB\\nLB 0)--( inc\""
+  :type '(choice (const :tag "None" nil) string)
+  :group 'k8s-to-puml)
+
+(defcustom k8s-to-puml-infra-storage-id nil
+  "PlantUML ID of the external storage node defined in the wrapper.
+If non-nil, all PersistentVolumes will be linked to this ID.
+Example: \"fss\""
+  :type '(choice (const :tag "None" nil) string)
+  :group 'k8s-to-puml)
+
 ;;; Knowledge Base (Declarative Rules)
 
 (defvar k8s-to-puml-extraction-rules
@@ -89,26 +115,34 @@ If a kind is not found in this list, `component` is used as fallback."
 Format: (KIND . ((FIELD-NAME . PATH-LIST) ...))")
 
 (defvar k8s-to-puml-inference-rules
-  `((internet . ((predicate . (lambda (facts)
+  '((internet . ((predicate . (lambda (facts)
                                 (cl-find "Ingress" facts :key (lambda (f) (alist-get 'kind f)) :test #'string=)))
                  (fact . ((kind . "External") (name . "Internet") (puml-id . "internet")))
                  (template . "cloud \"Internet\" as internet\n")))
     (ingress-ctrl-svc . ((predicate . (lambda (facts)
                                         (cl-find "Ingress" facts :key (lambda (f) (alist-get 'kind f)) :test #'string=)))
-                         (fact . ((kind . "Service") (name . ,k8s-to-puml-ingress-svc) (namespace . ,k8s-to-puml-ingress-namespace) (puml-id . "inc")))
+                         ;; Fato dinâmico (Lambda)
+                         (fact . (lambda () `((kind . "Service") (name . ,k8s-to-puml-ingress-svc) (namespace . ,k8s-to-puml-ingress-namespace) (puml-id . "inc"))))
                          (template . "")))
     (ingress-ctrl-pod . ((predicate . (lambda (facts)
                                         (cl-find "Ingress" facts :key (lambda (f) (alist-get 'kind f)) :test #'string=)))
-                         (fact . ((kind . "Pod") (name . ,k8s-to-puml-ingress-pod) (namespace . ,k8s-to-puml-ingress-namespace) (puml-id . "incp")))
+                         ;; Fato dinâmico (Lambda)
+                         (fact . (lambda () `((kind . "Pod") (name . ,k8s-to-puml-ingress-pod) (namespace . ,k8s-to-puml-ingress-namespace) (puml-id . "incp"))))
+                         (template . "")))
+    (external-storage . ((predicate . (lambda (_) k8s-to-puml-infra-storage-id))
+                         ;; Fato dinâmico (Lambda)
+                         (fact . (lambda () `((kind . "ExternalStorage") (name . "External Storage") (puml-id . ,k8s-to-puml-infra-storage-id))))
                          (template . ""))))
   "Rules to infer external elements.
-If PREDICATE is true, FACT is added to the knowledge base and TEMPLATE is rendered.")
+If PREDICATE is true, FACT is added to the knowledge base and TEMPLATE is rendered.
+FACT can be an alist or a function returning an alist.")
 
 (defvar k8s-to-puml-relation-rules
   '((internet-inc
      . ((source . "External")
         (dest . "Service")
-        (predicate . (lambda (src dst) (and (string= (alist-get 'name src) "Internet")
+        (predicate . (lambda (src dst) (and (null k8s-to-puml-infra-network-relations) 
+                                            (string= (alist-get 'name src) "Internet")
                                             (string= (alist-get 'name dst) k8s-to-puml-ingress-svc))))
         (template . "%s --( %s : traffic\n")))
     (inc-incp
@@ -159,7 +193,12 @@ If PREDICATE is true, FACT is added to the knowledge base and TEMPLATE is render
         (dest . "PersistentVolume")
         (predicate . (lambda (src dst)
                        (string= (alist-get 'name dst) (alist-get 'volume-name src))))
-        (template . "%s <--> %s\n"))))
+        (template . "%s <--> %s\n")))
+    (pv-ext-storage
+     . ((source . "PersistentVolume")
+	(dest . "ExternalStorage")
+	(predicate . (lambda (src dst) t)) ; Sempre liga PV ao Storage Fantasma
+	(template . "%s <--> %s\n"))))
   "Rules to infer connections between resources.")
 
 
@@ -284,7 +323,9 @@ If path is exhausted and node is a mapping, returns an alist."
     (dolist (rule k8s-to-puml-inference-rules)
       (let* ((def (cdr rule))
              (pred (alist-get 'predicate def))
-             (fact (alist-get 'fact def))
+             (raw-fact (alist-get 'fact def))
+             ;; Se for função, executa. Se não, usa como está.
+             (fact (if (functionp raw-fact) (funcall raw-fact) raw-fact))
              (tmpl (alist-get 'template def)))
         (when (funcall pred facts)
           (push fact inferred-facts)
@@ -300,14 +341,17 @@ If path is exhausted and node is a mapping, returns an alist."
           (puthash ns (cons fact (gethash ns namespaces)) namespaces))))
 
     ;; 3. Render Cluster and Namespaces
+    (when k8s-to-puml-infra-wrapper-open
+      (push (concat k8s-to-puml-infra-wrapper-open "\n") puml))
+
     (push "node \"Kubernetes Cluster\" {\n" puml)
     (maphash (lambda (ns ns-facts)
                (push (format "  package \"Namespace: %s\" {\n" ns) puml)
                (dolist (fact ns-facts)
-                 (let* ((kind (alist-get 'kind fact))
-                        (name (alist-get 'name fact))
-                        (id (alist-get 'puml-id fact)))
-                   (if (string= kind "RoleGroup")
+		 (let* ((kind (alist-get 'kind fact))
+			(name (alist-get 'name fact))
+			(id (alist-get 'puml-id fact)))
+		   (if (string= kind "RoleGroup")
                        (push (format "    folder %s [\n\t[RoleBinding]\n\t----\n\t%s\n\t====\n\t[Role]\n\t----\n\t%s\n    ]\n"
                                      id (alist-get 'rb-name fact) (alist-get 'role-name fact))
                              puml)
@@ -317,23 +361,31 @@ If path is exhausted and node is a mapping, returns an alist."
              namespaces)
     (push "}\n" puml)
 
+    (when k8s-to-puml-infra-wrapper-open
+      (push (concat k8s-to-puml-infra-wrapper-close "\n") puml))
+
     ;; 4. Infer and Render Relations (Cartesian Product)
     (dolist (src facts)
       (dolist (dst facts)
-        (unless (eq src dst)
-          (dolist (rule k8s-to-puml-relation-rules)
+	(unless (eq src dst)
+	  (dolist (rule k8s-to-puml-relation-rules)
             (let* ((def (cdr rule))
-                   (r-src (alist-get 'source def))
-                   (r-dst (alist-get 'dest def))
-                   (pred (alist-get 'predicate def))
-                   (tmpl (alist-get 'template def)))
+		   (r-src (alist-get 'source def))
+		   (r-dst (alist-get 'dest def))
+		   (pred (alist-get 'predicate def))
+		   (tmpl (alist-get 'template def)))
               (when (and (string= (alist-get 'kind src) r-src)
-                         (string= (alist-get 'kind dst) r-dst)
-                         (funcall pred src dst))
-                (push (format tmpl (alist-get 'puml-id src) (alist-get 'puml-id dst)) puml)))))))
+			 (string= (alist-get 'kind dst) r-dst)
+			 (funcall pred src dst))
+		(push (format tmpl (alist-get 'puml-id src) (alist-get 'puml-id dst)) puml)))))))
+
+    ;; 5. Inject Custom Network Relations
+    (when k8s-to-puml-infra-network-relations
+      (push (concat k8s-to-puml-infra-network-relations "\n") puml))
 
     (push "@enduml\n" puml)
     (apply #'concat (nreverse puml))))
+
 
 ;;; Interactive Command
 
