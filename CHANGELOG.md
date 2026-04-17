@@ -1,3 +1,12 @@
+# [0.2.0](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.1.2...v0.2.0) (2026-04-17)
+
+
+### Features
+
+* Adiciona agrupamento de Role e RoleBinding ([9789ae2](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/commit/9789ae28db7532d08664d4dca1fc1269cd5587a9))
+
+
+
 ## [0.1.2](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.1.1...v0.1.2) (2026-04-17)
 
 
