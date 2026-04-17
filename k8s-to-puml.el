@@ -3,7 +3,7 @@
 ;; Copyright (C) 2024
 ;;
 ;; Author: Jeremias
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: tools, kubernetes, plantuml
 ;; URL: https://github.com/jeremias/k8s-to-puml
@@ -75,7 +75,10 @@ If a kind is not found in this list, `component` is used as fallback."
   '(("RoleBinding" . ((role-ref . ("roleRef" "name"))))
     ("Deployment" . ((name . ("metadata" "name"))
                      (namespace . ("metadata" "namespace"))
-                     (match-labels . ("spec" "selector" "matchLabels"))))
+                     (match-labels . ("spec" "selector" "matchLabels"))
+		     (pvcs . ("spec" "template" "spec" "volumes" "*" "persistentVolumeClaim" "claimName"))
+                     (configmaps . ("spec" "template" "spec" "containers" "*" "envFrom" "*" "configMapRef" "name"))))
+    ("PersistentVolumeClaim" . ((volume-name . ("spec" "volumeName"))))
     ("Service" . ((name . ("metadata" "name"))
                   (namespace . ("metadata" "namespace"))
                   (selector . ("spec" "selector"))))
@@ -137,7 +140,26 @@ If PREDICATE is true, FACT is added to the knowledge base and TEMPLATE is render
                               (cl-every (lambda (pair)
                                           (string= (cdr pair) (alist-get (car pair) dep-sel nil nil #'string=)))
                                         svc-sel)))))
-        (template . "%s --(0 %s : selects\n"))))
+        (template . "%s --(0 %s : selects\n")))
+    (deployment-pvc
+     . ((source . "Deployment")
+        (dest . "PersistentVolumeClaim")
+        (predicate . (lambda (src dst)
+                       ;; flatten-tree garante que lidamos bem com a lista gerada pelo "*"
+                       (member (alist-get 'name dst) (flatten-tree (alist-get 'pvcs src)))))
+        (template . "%s <--> %s\n")))
+    (deployment-configmap
+     . ((source . "Deployment")
+        (dest . "ConfigMap")
+        (predicate . (lambda (src dst)
+                       (member (alist-get 'name dst) (flatten-tree (alist-get 'configmaps src)))))
+        (template . "%s <-- %s\n")))
+    (pvc-pv
+     . ((source . "PersistentVolumeClaim")
+        (dest . "PersistentVolume")
+        (predicate . (lambda (src dst)
+                       (string= (alist-get 'name dst) (alist-get 'volume-name src))))
+        (template . "%s <--> %s\n"))))
   "Rules to infer connections between resources.")
 
 
