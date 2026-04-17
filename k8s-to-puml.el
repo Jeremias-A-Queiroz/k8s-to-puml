@@ -3,7 +3,7 @@
 ;; Copyright (C) 2024
 ;;
 ;; Author: Jeremias
-;; Version: 0.2.0
+;; Version: 0.3.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: tools, kubernetes, plantuml
 ;; URL: https://github.com/jeremias/k8s-to-puml
@@ -54,6 +54,21 @@ If a kind is not found in this list, `component` is used as fallback."
   :type '(alist :key-type string :value-type string)
   :group 'k8s-to-puml)
 
+(defcustom k8s-to-puml-ingress-namespace "ingress-nginx"
+  "Ingress Controller name."
+  :type 'string
+  :group 'k8s-to-puml)
+
+(defcustom k8s-to-puml-ingress-svc "ingress-nginx-controller"
+  "Ingress Controller SVC name."
+  :type 'string
+  :group 'k8s-to-puml)
+
+(defcustom k8s-to-puml-ingress-pod "ingress-nginx-controller-pod"
+  "Ingress Controller POD name."
+  :type 'string
+  :group 'k8s-to-puml)
+
 ;;; Knowledge Base (Declarative Rules)
 
 (defvar k8s-to-puml-extraction-rules
@@ -71,19 +86,39 @@ If a kind is not found in this list, `component` is used as fallback."
 Format: (KIND . ((FIELD-NAME . PATH-LIST) ...))")
 
 (defvar k8s-to-puml-inference-rules
-  '((internet . ((predicate . (lambda (facts)
+  `((internet . ((predicate . (lambda (facts)
                                 (cl-find "Ingress" facts :key (lambda (f) (alist-get 'kind f)) :test #'string=)))
                  (fact . ((kind . "External") (name . "Internet") (puml-id . "internet")))
-                 (template . "cloud \"Internet\" as internet\n"))))
+                 (template . "cloud \"Internet\" as internet\n")))
+    (ingress-ctrl-svc . ((predicate . (lambda (facts)
+                                        (cl-find "Ingress" facts :key (lambda (f) (alist-get 'kind f)) :test #'string=)))
+                         (fact . ((kind . "Service") (name . ,k8s-to-puml-ingress-svc) (namespace . ,k8s-to-puml-ingress-namespace) (puml-id . "inc")))
+                         (template . "")))
+    (ingress-ctrl-pod . ((predicate . (lambda (facts)
+                                        (cl-find "Ingress" facts :key (lambda (f) (alist-get 'kind f)) :test #'string=)))
+                         (fact . ((kind . "Pod") (name . ,k8s-to-puml-ingress-pod) (namespace . ,k8s-to-puml-ingress-namespace) (puml-id . "incp")))
+                         (template . ""))))
   "Rules to infer external elements.
 If PREDICATE is true, FACT is added to the knowledge base and TEMPLATE is rendered.")
 
 (defvar k8s-to-puml-relation-rules
-  '((internet-ingress
+  '((internet-inc
      . ((source . "External")
+        (dest . "Service")
+        (predicate . (lambda (src dst) (and (string= (alist-get 'name src) "Internet")
+                                            (string= (alist-get 'name dst) k8s-to-puml-ingress-svc))))
+        (template . "%s --( %s : traffic\n")))
+    (inc-incp
+     . ((source . "Service")
+        (dest . "Pod")
+        (predicate . (lambda (src dst) (and (string= (alist-get 'name src) k8s-to-puml-ingress-svc)
+                                            (string= (alist-get 'name dst) k8s-to-puml-ingress-pod))))
+        (template . "%s --(0 %s\n")))
+    (incp-ingress
+     . ((source . "Pod")
         (dest . "Ingress")
-        (predicate . (lambda (src dst) (string= (alist-get 'name src) "Internet")))
-        (template . "%s --> %s : traffic\n")))
+        (predicate . (lambda (src dst) (string= (alist-get 'name src) k8s-to-puml-ingress-pod)))
+        (template . "%s --> %s\n")))
     (ingress-service
      . ((source . "Ingress")
         (dest . "Service")
@@ -104,6 +139,7 @@ If PREDICATE is true, FACT is added to the knowledge base and TEMPLATE is render
                                         svc-sel)))))
         (template . "%s --(0 %s : selects\n"))))
   "Rules to infer connections between resources.")
+
 
 ;;; Extraction Engine
 
