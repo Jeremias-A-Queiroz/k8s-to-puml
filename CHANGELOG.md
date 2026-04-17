@@ -1,3 +1,12 @@
+# [0.5.0](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.4.0...v0.5.0) (2026-04-17)
+
+
+### Features
+
+* Adiciona suporte a infraestrutura externa e storage ([b9ace74](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/commit/b9ace7402fbfcc0e46117804912de9f0cf9e4aaa)), closes [#12](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/issues/12)
+
+
+
 # [0.4.0](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.3.0...v0.4.0) (2026-04-17)
 
 
