@@ -39,7 +39,8 @@ Example: \"!define k8s https://raw.githubusercontent.com/...\\n!include k8s\""
   :group 'k8s-to-puml)
 
 (defcustom k8s-to-puml-shape-mapping
-  '(("Ingress"               . "interface")
+  '(("Ingress"               . "boundary")
+    ("Service"               . "interface")
     ("ConfigMap"             . "artifact")
     ("Secret"                . "artifact")
     ("PersistentVolumeClaim" . "database")
