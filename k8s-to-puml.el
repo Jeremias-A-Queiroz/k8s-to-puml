@@ -3,7 +3,7 @@
 ;; Copyright (C) 2024
 ;;
 ;; Author: Jeremias
-;; Version: 0.5.0
+;; Version: 0.6.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: tools, kubernetes, plantuml
 ;; URL: https://github.com/jeremias/k8s-to-puml
@@ -52,6 +52,12 @@ Example: \"!define k8s https://raw.githubusercontent.com/...\\n!include k8s\""
   "Mapping of Kubernetes resource kinds to PlantUML shapes.
 If a kind is not found in this list, `component` is used as fallback."
   :type '(alist :key-type string :value-type string)
+  :group 'k8s-to-puml)
+
+(defcustom k8s-to-puml-ignored-kinds nil
+  "List of Kubernetes Kinds to comment out in the generated PlantUML diagram.
+Example: '(\"ServiceAccount\" \"Secret\")"
+  :type '(repeat string)
   :group 'k8s-to-puml)
 
 (defcustom k8s-to-puml-ingress-namespace "ingress-nginx"
@@ -348,15 +354,16 @@ If path is exhausted and node is a mapping, returns an alist."
     (maphash (lambda (ns ns-facts)
                (push (format "  package \"Namespace: %s\" {\n" ns) puml)
                (dolist (fact ns-facts)
-		 (let* ((kind (alist-get 'kind fact))
-			(name (alist-get 'name fact))
-			(id (alist-get 'puml-id fact)))
-		   (if (string= kind "RoleGroup")
-                       (push (format "    folder %s [\n\t[RoleBinding]\n\t----\n\t%s\n\t====\n\t[Role]\n\t----\n\t%s\n    ]\n"
-                                     id (alist-get 'rb-name fact) (alist-get 'role-name fact))
-                             puml)
-                     (let ((shape (or (cdr (assoc kind k8s-to-puml-shape-mapping)) "component")))
-                       (push (format "    %s \"[%s]\\n%s\" as %s\n" shape kind name id) puml)))))
+               (let* ((kind (alist-get 'kind fact))
+                      (name (alist-get 'name fact))
+                      (id (alist-get 'puml-id fact))
+                      (prefix (if (member kind k8s-to-puml-ignored-kinds) "    ' " "    ")))
+                 (if (string= kind "RoleGroup")
+                     (push (format "%sfolder %s [\n\t[RoleBinding]\n\t----\n\t%s\n\t====\n\t[Role]\n\t----\n\t%s\n    ]\n"
+                                   prefix id (alist-get 'rb-name fact) (alist-get 'role-name fact))
+                           puml)
+                   (let ((shape (or (cdr (assoc kind k8s-to-puml-shape-mapping)) "component")))
+                     (push (format "%s%s \"[%s]\\n%s\" as %s\n" prefix shape kind name id) puml)))))
                (push "  }\n" puml))
              namespaces)
     (push "}\n" puml)
@@ -366,18 +373,23 @@ If path is exhausted and node is a mapping, returns an alist."
 
     ;; 4. Infer and Render Relations (Cartesian Product)
     (dolist (src facts)
-      (dolist (dst facts)
-	(unless (eq src dst)
-	  (dolist (rule k8s-to-puml-relation-rules)
+    (dolist (dst facts)
+      (unless (eq src dst)
+        (let ((is-ignored (or (member (alist-get 'kind src) k8s-to-puml-ignored-kinds)
+                              (member (alist-get 'kind dst) k8s-to-puml-ignored-kinds))))
+          (dolist (rule k8s-to-puml-relation-rules)
             (let* ((def (cdr rule))
-		   (r-src (alist-get 'source def))
-		   (r-dst (alist-get 'dest def))
-		   (pred (alist-get 'predicate def))
-		   (tmpl (alist-get 'template def)))
+                   (r-src (alist-get 'source def))
+                   (r-dst (alist-get 'dest def))
+                   (pred (alist-get 'predicate def))
+                   (tmpl (alist-get 'template def)))
               (when (and (string= (alist-get 'kind src) r-src)
-			 (string= (alist-get 'kind dst) r-dst)
-			 (funcall pred src dst))
-		(push (format tmpl (alist-get 'puml-id src) (alist-get 'puml-id dst)) puml)))))))
+                         (string= (alist-get 'kind dst) r-dst)
+                         (funcall pred src dst))
+                (push (format (if is-ignored (concat "' " tmpl) tmpl) 
+                              (alist-get 'puml-id src) 
+                              (alist-get 'puml-id dst)) 
+                      puml))))))))
 
     ;; 5. Inject Custom Network Relations
     (when k8s-to-puml-infra-network-relations
