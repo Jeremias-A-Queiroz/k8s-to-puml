@@ -3,7 +3,7 @@
 ;; Copyright (C) 2024
 ;;
 ;; Author: Jeremias
-;; Version: 0.1.2
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "29.1"))
 ;; Keywords: tools, kubernetes, plantuml
 ;; URL: https://github.com/jeremias/k8s-to-puml
@@ -57,7 +57,8 @@ If a kind is not found in this list, `component` is used as fallback."
 ;;; Knowledge Base (Declarative Rules)
 
 (defvar k8s-to-puml-extraction-rules
-  '(("Deployment" . ((name . ("metadata" "name"))
+  '(("RoleBinding" . ((role-ref . ("roleRef" "name"))))
+    ("Deployment" . ((name . ("metadata" "name"))
                      (namespace . ("metadata" "namespace"))
                      (match-labels . ("spec" "selector" "matchLabels"))))
     ("Service" . ((name . ("metadata" "name"))
@@ -185,6 +186,33 @@ If path is exhausted and node is a mapping, returns an alist."
 
 ;;; Inference & Rendering Engine
 
+(defun k8s-to-puml--transform-rolegroups (facts)
+  "Merge RoleBindings and Roles in 'RoleGroup'. Keep orphan kinds."
+  (let ((new-facts nil)
+        (used-roles nil))
+    ;; 1. Makes the groups thourgh Bindings
+    (dolist (fact facts)
+      (when (string= (alist-get 'kind fact) "RoleBinding")
+        (let* ((ref (alist-get 'role-ref fact))
+               (role (cl-find-if (lambda (f) 
+                                   (and (string= (alist-get 'kind f) "Role") 
+                                        (string= (alist-get 'name f) ref))) 
+                                 facts)))
+          (when role (push (alist-get 'name role) used-roles))
+          (push `((kind . "RoleGroup")
+                  (namespace . ,(alist-get 'namespace fact))
+                  (puml-id . ,(alist-get 'puml-id fact))
+                  (rb-name . ,(alist-get 'name fact))
+                  (role-name . ,(if role (alist-get 'name role) ref)))
+                new-facts))))
+    ;; 2. Return groups and facts (except previous Bindings and Roles)
+    (append new-facts
+            (cl-remove-if (lambda (f)
+                            (or (string= (alist-get 'kind f) "RoleBinding")
+                                (and (string= (alist-get 'kind f) "Role")
+                                     (member (alist-get 'name f) used-roles))))
+                          facts))))
+
 (defun k8s-to-puml--generate-puml (facts)
   "Generate PlantUML string from extracted FACTS."
   (let ((puml (list "@startuml\nskinparam componentStyle uml2\n"))
@@ -205,6 +233,7 @@ If path is exhausted and node is a mapping, returns an alist."
           (push tmpl puml))))
 
     (setq facts (append inferred-facts facts))
+    (setq facts (k8s-to-puml--transform-rolegroups facts))
 
     ;; 2. Group by Namespace (excluding Externals)
     (dolist (fact facts)
@@ -219,9 +248,13 @@ If path is exhausted and node is a mapping, returns an alist."
                (dolist (fact ns-facts)
                  (let* ((kind (alist-get 'kind fact))
                         (name (alist-get 'name fact))
-                        (id (alist-get 'puml-id fact))
-                        (shape (or (cdr (assoc kind k8s-to-puml-shape-mapping)) "component")))
-                   (push (format "    %s \"[%s]\\n%s\" as %s\n" shape kind name id) puml)))
+                        (id (alist-get 'puml-id fact)))
+                   (if (string= kind "RoleGroup")
+                       (push (format "    folder %s [\n\t[RoleBinding]\n\t----\n\t%s\n\t====\n\t[Role]\n\t----\n\t%s\n    ]\n"
+                                     id (alist-get 'rb-name fact) (alist-get 'role-name fact))
+                             puml)
+                     (let ((shape (or (cdr (assoc kind k8s-to-puml-shape-mapping)) "component")))
+                       (push (format "    %s \"[%s]\\n%s\" as %s\n" shape kind name id) puml)))))
                (push "  }\n" puml))
              namespaces)
     (push "}\n" puml)
