@@ -1,3 +1,12 @@
+## [0.1.2](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.1.1...v0.1.2) (2026-04-17)
+
+
+### Bug Fixes
+
+* Ajusta mapeamento de formas e regras de inferência ([c95a89b](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/commit/c95a89bd1d12da92073f169d4c32a6dadd76d4c5)), closes [#4](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/issues/4)
+
+
+
 ## [0.1.1](https://github.com/Jeremias-A-Queiroz/k8s-to-puml/compare/v0.1.0...v0.1.1) (2026-04-17)
 
 
