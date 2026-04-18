@@ -1,0 +1,41 @@
+@startuml
+skinparam componentStyle uml2
+cloud "Internet" as internet
+node "Kubernetes Cluster" {
+  package "Namespace: certificadosunimedsc-hml" {
+    boundary "[Ingress]\ncertificadosunimedsc-base-ingress" as ingress_certificadosunimedsc_base_ingress
+    component "[Deployment]\ncertificadosunimedsc-base-deployment" as deployment_certificadosunimedsc_base_deployment
+    interface "[Service]\ncertificadosunimedsc-base-service" as service_certificadosunimedsc_base_service
+    collections "[ConfigMap]\ncertificadosunimedsc-config-kkg99gfdt7" as configmap_certificadosunimedsc_config_kkg99gfdt7
+    artifact "[ServiceAccount]\ncertificadosunimedsc-base-serviceaccount" as serviceaccount_certificadosunimedsc_base_serviceaccount
+    folder rolebinding_certificadosunimedsc_bind_admins_rw [
+	[RoleBinding]
+	----
+	certificadosunimedsc-bind-admins-rw
+	====
+	[Role]
+	----
+	role-rw
+    ]
+    folder rolebinding_certificadosunimedsc_bind_devs_ro [
+	[RoleBinding]
+	----
+	certificadosunimedsc-bind-devs-ro
+	====
+	[Role]
+	----
+	certificadosunimedsc-role-ro
+    ]
+  }
+  package "Namespace: ingress-nginx" {
+    interface "[Service]\ningress-nginx-controller" as inc
+    component "[Pod]\ningress-nginx-controller-pod" as incp
+  }
+}
+incp --> ingress_certificadosunimedsc_base_ingress
+inc --(0 incp
+internet --( inc : traffic
+service_certificadosunimedsc_base_service --(0 deployment_certificadosunimedsc_base_deployment : selects
+deployment_certificadosunimedsc_base_deployment <-- configmap_certificadosunimedsc_config_kkg99gfdt7
+ingress_certificadosunimedsc_base_ingress --( service_certificadosunimedsc_base_service : routes to
+@enduml
