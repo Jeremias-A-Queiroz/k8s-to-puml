@@ -1,0 +1,50 @@
+@startuml
+skinparam componentStyle uml2
+!include <office/Concepts/firewall>
+!include <office/Sites/site_collection>
+cloud "Internet" as internet
+frame "OCI" {
+  'artifact "OCI FSS" as fss
+  rectangle "<$firewall>\nFortiweb" as Fortiweb
+  rectangle "<$site_collection>\nOCI LB" as LB
+node "Kubernetes Cluster" {
+  package "Namespace: certificadosexample-hml" {
+    boundary "[Ingress]\ncertificadosexample-base-ingress" as ingress_certificadosexample_base_ingress
+    component "[Deployment]\ncertificadosexample-base-deployment" as deployment_certificadosexample_base_deployment
+    interface "[Service]\ncertificadosexample-base-service" as service_certificadosexample_base_service
+    collections "[ConfigMap]\ncertificadosexample-config-kkg99gfdt7" as configmap_certificadosexample_config_kkg99gfdt7
+    ' artifact "[ServiceAccount]\ncertificadosexample-base-serviceaccount" as serviceaccount_certificadosexample_base_serviceaccount
+    folder rolebinding_certificadosexample_bind_admins_rw [
+	[RoleBinding]
+	----
+	certificadosexample-bind-admins-rw
+	====
+	[Role]
+	----
+	role-rw
+    ]
+    folder rolebinding_certificadosexample_bind_devs_ro [
+	[RoleBinding]
+	----
+	certificadosexample-bind-devs-ro
+	====
+	[Role]
+	----
+	certificadosexample-role-ro
+    ]
+  }
+  package "Namespace: ingress-nginx" {
+    interface "[Service]\ningress-nginx-controller" as inc
+    component "[Pod]\ningress-nginx-controller-pod" as incp
+  }
+}
+}
+incp --> ingress_certificadosexample_base_ingress
+inc --(0 incp
+service_certificadosexample_base_service --(0 deployment_certificadosexample_base_deployment : selects
+deployment_certificadosexample_base_deployment <-- configmap_certificadosexample_config_kkg99gfdt7
+ingress_certificadosexample_base_ingress --( service_certificadosexample_base_service : routes to
+internet --(0 Fortiweb : traffic
+Fortiweb 0)-right-(0 LB
+LB 0)--( inc
+@enduml
